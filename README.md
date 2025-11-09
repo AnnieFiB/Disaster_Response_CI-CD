@@ -1,5 +1,7 @@
 # Disaster Response Analytics – KPI Dashboard for Insurance Operations
 
+>- Automated Ingestion and Analytics on disaster response data using Dockerized Data Pipelines and PostgreSQL.
+
 ## Background
 
 **ResilienceWatch Analytics**, founded in 2015 in Berlin, Germany, specializes in real-time disaster impact analytics and predictive claims management for the insurance industry.  
@@ -68,15 +70,72 @@ ensure that the disaster response platform is regularly updated with new feature
 DisasterResponseAnalytics/
 ├── docker-compose.yml          # Defines multi-container setup (ETL + DB)
 ├── .env                        # Environment variables (API keys, DB creds)
+├── db_init/                    # db, Table & index creation scripts
+│   ├── 001_init.sql                             
+│   └── 002_indexes.sql           
+├── pgadmin/
+│   └──servers.json             # servers creation scripts
 ├── etl/
-│   ├── extract.py              # Fetch FEMA data
-│   ├── transform.py            # Clean and normalize datasets
-│   └── load.py                 # Load processed data into PostgreSQL
-├── db/
-│   └── schema.sql              # Table creation scripts
+│   ├── Dockerfile              
+│   ├── requirements.txt          
+│   └── etl.py                 # Fetch FEMA data, normalize & Load processed data into PostgreSQL     
 ├── dashboards/
 │   └── Disaster_KPI.pbix       # Power BI / Tableau dashboard file
 ├── .github/
 │   └── workflows/
 │       └── ci_cd.yml           # Linting, build, and deploy automation
 └── README.md                   # Project documentation
+```
+
+### Setup & run
+
+>1. Clone repo and create the folders/files as above (or drop these into your existing project).
+      ```bash
+      git clone https://github.com/AnnieFiB/Disaster_Response_CI-CD
+      ```
+>2. Create .env
+>3. How etl.py behaves
+      ```ini
+       - First run: landing is empty → full dump → then an incremental sweep using max(DB watermark, today@00:00Z) (today guard).
+       - Subsequent runs: incremental only, using the stored DB MAX(lastrefresh)—but never earlier than today’s midnight on the first incremental day.
+       - Scheduling: set POLL_ONCE=false and POLL_INTERVAL_SEC=86400 to run daily inside the container.
+      ```
+>4. Bring the stack up:
+      ```bash
+            docker compose up -d --build
+            docker compose logs -f postgres # watch init scripts complete log
+            docker compose logs -f etl      # watch landing/flat loads log
+      ```
+>5. For a redeployment:
+        ```bash
+            docker compose down -v          # removes containers + postgres_data volume
+            docker volume ls | grep disaster-response-analytics
+            docker volume rm volume-id
+            docker compose up -d --build
+      ```
+
+```markdown
+      | Step                        | Command                                              | Result                                         |
+| --------------------------- | ---------------------------------------------------- | ---------------------------------------------- |
+| Identify container’s volume | `docker ps --format "table {{.Names}}\t{{.Mounts}}"` | Finds the hash volume name                     |
+| Remove that one volume      | `docker volume rm <volume-id>`                       | Deletes only this stack’s Postgres data        |
+| Rebuild                     | `docker compose up -d --build`                       | Fresh FEMA ETL start, other projects untouched |
+
+```
+
+>6.Validate Postgres:
+      >- pgAdmin → connect to Local-Postgres (already preconfigured), DB fema.
+      >- Check table public.fema_pa_projects_v2 and view public.fema_pa_projects_v2_flat.
+>7. Power BI Desktop
+      >- Get Data → PostgreSQL database → Server: localhost, Database: fema (port 5434).
+      >- Use fema_pa_projects_v2_flat for a flattened feed. Schedule refresh later via a gateway if you publish to Power BI Service.
+
+### Summary workflow
+
+| Step                           | Command                                                      | Description                                                      |
+| ------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| **1. Build & start services**  | `docker compose up -d --build`                               | Builds ETL container and initializes DB.                         |
+| **2. Wait for DB healthcheck** | (auto)                                                       | Compose waits until Postgres is healthy.                         |
+| **3. ETL runs**                | (auto)                                                       | `etl.py` starts, pulls FEMA API data, loads landing, syncs flat. |
+| **4. Verify**                  | `docker exec -it dr_postgres psql -U admin -d fema -c "\dt"` | Confirm tables exist.                                            |
+| **5. Connect Power BI**        | Host `localhost`, Port `5434`, Database `fema`               | Use `fema_pa_projects_v2_flat` as your main table.               |
