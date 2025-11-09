@@ -1,4 +1,4 @@
-name: Build and Push Docker Image (GHCR + Docker Hub)
+name: Build and Push Docker Image (GHCR + Docker Hub, versioned)
 
 on:
   push:
@@ -12,6 +12,11 @@ jobs:
       contents: read
       packages: write     # allows pushing to GHCR
       id-token: write
+
+    env:
+      GHCR_OWNER: ${{ vars.GHCR_OWNER }}
+      DOCKERHUB_USER: ${{ vars.DOCKERHUB_USERNAME }}
+      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
 
     steps:
       # 1. Checkout source code
@@ -37,6 +42,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+       # 5. Auto-generate tags & labels based on branch / tag / sha ---
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ vars.GHCR_OWNER }}/${{ vars.IMAGE_NAME }}
+            docker.io/${{ vars.DOCKERHUB_USER }}/${{ vars.IMAGE_NAME }}
+          tags: |
+            # For git tags like v1.2.3 → add v1.2.3, v1.2, v1
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # For main branch → latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Always add a short SHA tag for traceability
+            type=sha,format=short,prefix=sha-
+
       # 5. Build and push etl image
       - name: Build and Push image to both registries
         uses: docker/build-push-action@v6
@@ -47,3 +70,6 @@ jobs:
           tags: |
             ghcr.io/anniefib/disaster-response-etl:latest
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/disaster-response-etl:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
