@@ -1,0 +1,58 @@
+name: disaster-response-analytics
+
+networks:
+  disaster_response:
+    driver: bridge  
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: dr_postgres
+    networks:
+      - disaster_response
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fema}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db_init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5544:5432"  # host:container
+
+  etl:
+    image: docker.io/anniemona/disaster-response-etl:latest
+    container_name: dr_etl
+    networks:
+      - disaster_response
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: dr_pgadmin
+    networks:
+      - disaster_response
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:
