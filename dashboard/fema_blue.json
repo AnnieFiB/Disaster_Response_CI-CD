@@ -1,0 +1,36 @@
+{
+  "name": "FEMA Blue",
+  "dataColors": [
+    "#0071BC",
+    "#112E51",
+    "#A94442",
+    "#2E8540",
+    "#FDB81E",
+    "#5B616B",
+    "#02BFE7",
+    "#4AA564"
+  ],
+  "background": "#F5F5F5",
+  "foreground": "#112E51",
+  "tableAccent": "#0071BC",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "title": [
+          {
+            "color": { "solid": { "color": "#112E51" } },
+            "fontSize": 14,
+            "fontFamily": "Segoe UI Semibold"
+          }
+        ],
+        "labels": [
+          {
+            "color": { "solid": { "color": "#112E51" } },
+            "textSize": 12,
+            "fontFamily": "Segoe UI"
+          }
+        ]
+      }
+    }
+  }
+}
