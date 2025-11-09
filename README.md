@@ -7,8 +7,6 @@
 **ResilienceWatch Analytics**, founded in 2015 in Berlin, Germany, specializes in real-time disaster impact analytics and predictive claims management for the insurance industry.  
 In partnership with **SafeGuard Insurance**, one of Europe’s largest insurers, the company developed an automated analytics platform to enhance disaster recovery tracking and claims processing efficiency.  
 
-The project leverages [**FEMA’s open APIs**](https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails) and integrates disaster and claims data into a unified analytics environment, enabling faster decision-making and improved customer response during crises.
-
 ---
 
 ### Project Overview 
@@ -35,6 +33,12 @@ It consolidates external disaster data (e.g., FEMA) and internal insurance claim
 - Real-time KPI dashboard for operational performannce monitoring and reporting
 - Automated ETL pipeline deployment using continuous integration and continuous deployment (CI/CD) to
 ensure that the disaster response platform is regularly updated with new features, enhancements, and data integrations
+
+---
+
+## Data Source & Dictionary
+
+The project leverages [**FEMA’s open APIs**](https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails) / [**FEMA’s Data Dictionary**](https://www.fema.gov/openfema-data-page/public-assistance-funded-projects-details-v2) and integrates disaster and claims data into a unified analytics environment, enabling faster decision-making and improved customer response during crises.
 
 ---
 
@@ -77,6 +81,8 @@ ensure that the disaster response platform is regularly updated with new feature
 | 4      | 🐘 **PostgreSQL Database**    | Centralized storage for disaster & claims data →                                                       |
 | 5      | 📊 **Power BI Dashboard**     | Connects to PostgreSQL for live KPI visualization →                                                    |
 | 6       | 🧩 **GitHub Actions (CI/CD)** | Automates testing, building, and deployment → pushes Docker image to Registry → updates ETL containers |
+
+---
 
 ## Repository Structure  
 
@@ -163,6 +169,13 @@ DisasterResponseAnalytics/
 > - Inspect tables:
 >   - `public.fema_pa_projects_v2`
 >   - `public.fema_pa_projects_v2_flat`
+> 
+> **On Local host**
+>
+> ```powershell
+> psql -h 127.0.0.1 -p 5544 -U admin -d fema -c "select current_user, current_database();" 
+> #if auth error (possibly on port; change port in compose or kill process listening on the port)
+> ```
 
 ---
 
@@ -171,9 +184,11 @@ DisasterResponseAnalytics/
 > - **Get Data → PostgreSQL database**  
 >   - Server: `localhost`  
 >   - Database: `fema`  
->   - Port: `5434` (if mapped from compose)  
+>   - Port: `5544` (if mapped from compose)  
 > - Load table **`fema_pa_projects_v2_flat`** for a clean, flattened feed.  
 > - When publishing to Power BI Service, configure a **Gateway** for scheduled refresh.
+
+---
 
 ## Summary workflow
 
@@ -183,4 +198,4 @@ DisasterResponseAnalytics/
 | **2. Wait for DB healthcheck** | (auto)                                                       | Compose waits until Postgres is healthy.                         |
 | **3. ETL runs**                | (auto)                                                       | `etl.py` starts, pulls FEMA API data, loads landing, syncs flat. |
 | **4. Verify**                  | `docker exec -it dr_postgres psql -U admin -d fema -c "\dt"` | Confirm tables exist.                                            |
-| **5. Connect Power BI**        | Host `localhost`, Port `5434`, Database `fema`               | Use `fema_pa_projects_v2_flat` as your main table.               |
+| **5. Connect Power BI**        | Host `localhost`, Port `5544`, Database `fema`               | Use `fema_pa_projects_v2_flat` as your main table.               |
