@@ -230,7 +230,9 @@ def sync_flat_from_landing():
 # Main ETL logic
 # -----------------------------------------------------------------------------
 def full_dump():
-    """Fetch ALL rows (no filter), paging by $skip/$top."""
+    """
+    Fetch ALL rows (no filter), paging by $skip/$top.
+    """
     total, skip = 0, 0
     while True:
         params = {"$skip": skip, "$top": min(BATCH_SIZE, MAX_TOP)}
@@ -282,7 +284,9 @@ def today_midnight_iso_quoted():
     return f"'{t0.isoformat().replace('+00:00','Z')}'"
 
 def run_cycle():
-    """One cycle: full once if empty; then incremental from max(DB watermark, today@00:00Z)."""
+    """
+    One cycle: full once if empty; then incremental from max(DB watermark, today@00:00Z).
+    """
     if LOAD_MODE == "replace":
         truncate_if_replace()
 
