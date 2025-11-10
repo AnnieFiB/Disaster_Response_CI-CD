@@ -75,12 +75,12 @@ The project leverages [**FEMA’s open APIs**](https://www.fema.gov/api/open/v2/
 
 | **Step** | **Component**                 | **Description / Flow**                                                                                 |
 | -------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 1      | 🌐 **API Sources**            | FEMA & Weather APIs provide real-time disaster and declaration data →                                  |
-| 2      | 🐍 **Python ETL**             | Extracts, transforms, and loads JSON data →                                                            |
-| 3      | 🐳 **Docker & Compose**       | Containerized ETL pipeline ensures reproducible environments →                                         |
-| 4      | 🐘 **PostgreSQL Database**    | Centralized storage for disaster & claims data →                                                       |
-| 5      | 📊 **Power BI Dashboard**     | Connects to PostgreSQL for live KPI visualization →                                                    |
-| 6       | 🧩 **GitHub Actions (CI/CD)** | Automates testing, building, and deployment → pushes Docker image to Registry → updates ETL containers |
+| 1      | **API Sources**            | FEMA & Weather APIs provide real-time disaster and declaration data →                                  |
+| 2      | **Python ETL**             | Extracts, transforms, and loads JSON data →                                                            |
+| 3      | **Docker & Compose**       | Containerized ETL pipeline ensures reproducible environments →                                         |
+| 4      | **PostgreSQL Database**    | Centralized storage for disaster & claims data →                                                       |
+| 5      | **Power BI Dashboard**     | Connects to PostgreSQL for live KPI visualization →                                                    |
+| 6       | **GitHub Actions (CI/CD)** | Automates testing, building, and deployment → pushes Docker image to Registry → updates ETL containers |
 
 ---
 
@@ -89,7 +89,9 @@ The project leverages [**FEMA’s open APIs**](https://www.fema.gov/api/open/v2/
 ```bash
 DisasterResponseAnalytics/
 ├── docker-compose.yml          # Defines multi-container setup (ETL + DB)
+├── compose.prod.yml           # Defines multi-container setup (etl Image from registry + DB)
 ├── .env                        # Environment variables (API keys, DB creds)
+├── assets/                    # Images and others ...
 ├── db_init/                    # db, Table & index creation scripts
 │   ├── 001_init.sql                             
 │   └── 002_indexes.sql           
@@ -100,10 +102,11 @@ DisasterResponseAnalytics/
 │   ├── requirements.txt          
 │   └── etl.py                 # Fetch FEMA data, normalize & Load processed data into PostgreSQL     
 ├── dashboards/
-│   └── Disaster_KPI.pbix       # Power BI / Tableau dashboard file
+│   ├── fema_blue.json        # Power BI theme
+│   └── FEMA_Disaster_Response_Analytics.pbix       # Power BI / Tableau dashboard file
 ├── .github/
 │   └── workflows/
-│       └── ci_cd.yml           # Linting, build, and deploy automation
+│       └── ci-build-push.yml           # Automates building and pushing image.
 └── README.md                   # Project documentation
 ```
 
@@ -185,17 +188,173 @@ DisasterResponseAnalytics/
 >   - Server: `localhost`  
 >   - Database: `fema`  
 >   - Port: `5544` (if mapped from compose)  
-> - Load table **`fema_pa_projects_v2_flat`** for a clean, flattened feed.  
+> - Load table **`fema_pa_projects_v2_flat`** for a clean, flattened feed (Direct Query).  
 > - When publishing to Power BI Service, configure a **Gateway** for scheduled refresh.
+
+---
+
+## Docker Image Publishing & Deployment Workflow
+
+After verifying stack locally and connecting Power BI, you can publish your **ETL image** so it can run anywhere or be automatically deployed via CI/CD.
+
+You have two options:
+
+1. **Manual Local Push** — quick one-time upload to Docker Hub from your PC  
+2. **Automated Push via GitHub Actions** — continuous builds to both GHCR and Docker Hub
+
+---
+
+### 🔹Manual Local Push to Docker Hub
+
+Use this path first to confirm that your Docker build and authentication work.
+
+#### **Prerequisites**
+
+- Docker Desktop installed  
+- Docker Hub account + access token with **Read & Write** scope  
+  *(Account Settings → Security → New Access Token)*
+
+#### **Steps**
+
+```bash
+# 1. Log in to Docker Hub (use the token as your password)
+docker login
+
+# 2. Build the ETL image locally
+docker build -t disaster-response-etl:latest ./etl
+
+# 3. Tag it for Docker Hub
+docker tag disaster-response-etl:latest docker.io/<yourusername>/disaster-response-etl:latest
+
+# 4. Push the image
+docker push docker.io/<yourusername>/disaster-response-etl:latest
+
+# 5. The image now appears in your Docker Hub account under
+https://hub.docker.com/repository/docker/<yourusername>/disaster-response-etl.
+
+# 6. Test the uploaded image
+docker pull <yourusername>/disaster-response-etl:latest
+docker run --rm <yourusername>/disaster-response-etl:latest
+```
+
+---
+
+### Automated Push via GitHub Actions (CI/CD)
+
+> Your repository contains a workflow (.github/workflows/ci-build-push.yml) that automatically builds and pushes the image to both registries when you push to main or create a release tag.
+
+| Registry                             | Image Path                                          | Authentication                                    |
+| ------------------------------------ | --------------------------------------------------- | ------------------------------------------------- |
+| **GitHub Container Registry (GHCR)** | `ghcr.io/<username>/disaster-response-etl:latest`   | Built-in GitHub token                             |
+| **Docker Hub**                       | `docker.io/<username>/disaster-response-etl:latest` | Secrets: `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` |
+
+#### Setup
+
+> - **On Docker Hub:**  
+>   - Go to Account Settings → Security → New Access Token
+>   - Choose Read & Write scope
+>   - Copy the token
+>
+> - **On GitHub:**  
+>   - Go to Settings → Secrets and variables → Actions
+
+```ini
+>   # Add to secrets: 
+> DOCKERHUB_USERNAME : <your-dockerhub-username> 
+> DOCKERHUB_TOKEN    : <your-access-token>
+
+>   # Add to variables: in lowercase
+> DOCKERHUB_USER: <your-dockerhub-username> 
+> GHCR_OWNER: <your-github-username> 
+> IMAGE_NAME: disaster-response-etl
+
+# check docker connection with token from repo terminal
+echo "dckr_pat_**** | docker login -u <username> --password-stdin
+```
+
+#### **Workflow Overview**  
+
+```yaml
+# .github/workflows/ci-build-push.yml (excerpt)
+
+- name: Log in to GHCR
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Log in to Docker Hub
+  uses: docker/login-action@v3
+  with:
+    username: ${{ secrets.DOCKERHUB_USERNAME }}
+    password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+- name: Build and Push image
+  uses: docker/build-push-action@v6
+  with:
+    context: ./etl
+    file: ./etl/Dockerfile
+    push: true
+    tags: |
+      ghcr.io/${{ github.repository_owner }}/disaster-response-etl:latest
+      docker.io/${{ secrets.DOCKERHUB_USERNAME }}/disaster-response-etl:latest
+```
+
+**Pipeline behavior**
+Every push to main or tag v*
+      → builds ETL container
+      → pushes it to GHCR + Docker Hub
+      → tags it as latest (and versioned tag if applicable).
+
+Verify builds
+      - GitHub Actions: Repo → Actions → Build and Push Docker Image
+      - GHCR: Repo → Packages tab
+      - Docker Hub: hub.docker.com/repositories
+
+---
+
+#### **Using the Published Image**
+
+Once published, reference the remote image in the deployment Compose file:
+
+```yaml
+# compose.prod.yml
+services:
+  etl:
+    image: docker.io/<username>/disaster-response-etl:latest
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+```
+
+Then Deploy or update:
+
+```bash
+docker compose -f compose.prod.yml pull
+docker compose -f compose.prod.yml up -d
+
+# 2) Check health/logs
+docker compose ps
+docker compose logs -f etl
+```
 
 ---
 
 ## Summary workflow
 
-| Step                           | Command                                                      | Description                                                      |
-| ------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **1. Build & start services**  | `docker compose up -d --build`                               | Builds ETL container and initializes DB.                         |
-| **2. Wait for DB healthcheck** | (auto)                                                       | Compose waits until Postgres is healthy.                         |
-| **3. ETL runs**                | (auto)                                                       | `etl.py` starts, pulls FEMA API data, loads landing, syncs flat. |
-| **4. Verify**                  | `docker exec -it dr_postgres psql -U admin -d fema -c "\dt"` | Confirm tables exist.                                            |
-| **5. Connect Power BI**        | Host `localhost`, Port `5544`, Database `fema`               | Use `fema_pa_projects_v2_flat` as your main table.               |
+| Step                           | Command                                                                 | Description                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **1. Build & start services**  | `docker compose up -d --build`                                          | Builds ETL container and initializes DB.                                   |
+| **2. Wait for DB healthcheck** | (auto)                                                                  | Compose waits until Postgres is healthy.                                   |
+| **3. ETL runs**                | (auto)                                                                  | `etl.py` starts, pulls FEMA API data, loads landing, syncs flat.           |
+| **4. Verify**                  | `docker exec -it dr_postgres psql -U admin -d fema -c "\dt"`            | Confirm tables exist.                                                      |
+| **5. Connect Power BI**        | Host `localhost`, Port `5544`, Database `fema`                          | Use `fema_pa_projects_v2_flat` as your main table.                         |
+| **6. View pgAdmin dashboard**  | Open `http://localhost:5050` → login with `.env` credentials            | Inspect ETL logs, DB tables, and run SQL queries visually.                 |
+| **7. Push to GHCR**            | `docker push ghcr.io/anniefib/disaster-response-etl:latest`             | Publishes image to GitHub Container Registry for CI/CD use.                |
+| **8. Push to Docker Hub**      | `docker push docker.io/anniemona/disaster-response-etl:latest`          | Publishes the same ETL image for public or cross-platform deployment.      |
+| **9. Stop all containers**     | `docker compose down`                                                   | Gracefully shuts down ETL, Postgres, and pgAdmin services.                 |
+| **10. Clean environment**      | `docker volume rm disaster-response-analytics_postgres_data` *(optional)* | Removes Postgres data volume to start fresh or reclaim disk space.         |
+
+---
