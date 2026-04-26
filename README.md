@@ -204,7 +204,7 @@ You have two options:
 
 ---
 
-### Manual Local Push to Docker Hub
+### 🔹Manual Local Push to Docker Hub
 
 Use this path first to confirm that your Docker build and authentication work.
 
@@ -241,7 +241,7 @@ docker run --rm <yourusername>/disaster-response-etl:latest
 
 ### Automated Push via GitHub Actions (CI/CD)
 
-> This repository contains a workflow (.github/workflows/ci-build-push.yml) that automatically builds and pushes the image to both registries when you push to main or create a release tag.
+> Your repository contains a workflow (.github/workflows/ci-build-push.yml) that automatically builds and pushes the image to both registries when you push to main or create a release tag.
 
 | Registry                             | Image Path                                          | Authentication                                    |
 | ------------------------------------ | --------------------------------------------------- | ------------------------------------------------- |
@@ -358,4 +358,3 @@ docker compose logs -f etl
 | **10. Clean environment**      | `docker volume rm disaster-response-analytics_postgres_data` *(optional)* | Removes Postgres data volume to start fresh or reclaim disk space.         |
 
 ---
-

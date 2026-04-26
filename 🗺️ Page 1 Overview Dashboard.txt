@@ -1,0 +1,104 @@
+git commit -- allow empty -m "chore(docker): test local Docker Hub push workflow for ETL image" \
+  -m "- Built and tagged etl image locally
+- Verified docker push to docker.io/<username>/disaster-response-etl:latest
+- Confirms Docker Hub authentication and tag naming before CI integration"
+
+
+
+
+
+
+
+🗺️ Page 1: Overview Dashboard
+
+Purpose: Executive summary and key metrics
+
+Layout (3x3 grid)
+Position	Visual	Details
+Top row	Text box (title)	“FEMA Disaster Response Analytics Overview”
+Row 1 left	Card	Project Count = COUNTROWS(fema_pa_projects_v2_flat)
+Row 1 middle	Card	Total Obligated = SUM(totalobligated)
+Row 1 right	Card	Federal Share = SUM(federalshare)
+Row 2 left	Donut chart	IncidentType vs Total Obligated
+Row 2 middle	Stacked bar chart	StateAbbreviation (Top 10) vs Total Obligated
+Row 2 right	Card	Avg Project Amount = AVERAGE(projectamount)
+Bottom	Map (Filled)	State-level map, Total Obligated by StateAbbreviation
+Footer	Text box	Data last updated: MAX(lastrefresh)
+🌪️ Page 2: Disaster Insights
+
+Purpose: Analyze incident types, declarations, and timelines.
+
+Position	Visual	Details
+Top	Text box (title)	“Disaster Insights by Type & Declaration Date”
+Left column	Line chart	DeclarationDate vs Total Obligated
+Center	Clustered column chart	IncidentType vs Project Count
+Right	Table	Columns: DisasterNumber, IncidentType, DeclarationDate, ProjectStatus, TotalObligated
+Bottom	Slicer	IncidentType (multi-select)
+💰 Page 3: Funding Analysis
+
+Purpose: Understand project size, category, and mitigation funding.
+
+Position	Visual	Details
+Top	Text box (title)	“Funding & Mitigation Overview”
+Left	Stacked column chart	ProjectSize vs TotalObligated + FederalShare
+Center	Scatter chart	X: MitigationAmount, Y: TotalObligated, Size: ProjectAmount
+Right	Card	Mitigation Amount = SUM(mitigationamount)
+Bottom	Matrix	Rows: DamageCategoryDesc, Values: SUM(TotalObligated)
+🏙️ Page 4: Geographic Drilldown
+
+Purpose: Regional and local distribution of funding.
+
+Position	Visual	Details
+Top	Text box (title)	“Geographic Funding Drilldown”
+Full width	Map (filled or shape map)	StateAbbreviation or County vs TotalObligated
+Left	Matrix	Rows: StateAbbreviation → County → ProjectCount
+Right	Bar chart	StateAbbreviation vs FederalShare
+Filters	Slicers	IncidentType, ProjectStatus, ProjectSize
+⚙️ Page 5: ETL & Data Quality Log
+
+Purpose: internal monitoring of the ETL pipeline.
+
+Position	Visual	Details
+Top	Text box (title)	“ETL Health & Data Refresh Log”
+Left	Card	MAX(lastrefresh) (Last API refresh timestamp)
+Center	Line chart	X: lastrefresh (date), Y: Project Count
+Right	Table	Columns: DisasterNumber, StateAbbreviation, ProjectStatus, LastObligationDate
+Bottom	Text box	Notes: “Source: OpenFEMA API (https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails)”
+📐 Navigation Bar (Optional)
+
+Use buttons on the left or top for quick navigation:
+
+🏠 Overview
+
+🌪 Disaster Insights
+
+💰 Funding Analysis
+
+🏙 Geography
+
+⚙️ ETL Log
+
+Add a rectangle or sidebar shape with your theme color (#112E51) as the background and white text buttons.
+
+💡 Extra Enhancements
+
+Drill-through pages:
+Right-click on a state → drill to "County Projects" page.
+
+Tooltip page:
+Small page showing IncidentType, TotalObligated, MitigationAmount.
+
+Conditional formatting:
+Highlight rows where ProjectStatus = 'Active' in red or yellow.
+
+Dynamic titles:
+Use measures like:
+
+"Funding Overview (" & SELECTEDVALUE('fema_pa_projects_v2_flat'[IncidentType],"All Types") & ")"
+
+
+
+
+
+
+docker compose down
